@@ -1,0 +1,4 @@
+gymnasium==0.29.1
+stable-baselines3==2.1.0
+tensorboard==2.15.0
+flappy-bird-gymnasium==0.3.0
