@@ -1,6 +1,7 @@
 import pygame
 from flappy_bird_gymnasium import FlappyBirdEnv
 
+
 class HumanFlappyBird(FlappyBirdEnv):
     def __init__(self):
         super(HumanFlappyBird, self).__init__(render_mode="human")
@@ -35,8 +36,9 @@ class HumanFlappyBird(FlappyBirdEnv):
                         quit()
             pygame.display.update()  # Update the display during pause
 
+
 env = HumanFlappyBird()
-env.close()
+
 while True:
     obs = env.reset()
 
@@ -47,6 +49,5 @@ while True:
         obs, reward, terminated, _, info = env.step(action)
         if terminated:
             break
-    
-    print(info["score"])
 
+    print("Score: ", info["score"])

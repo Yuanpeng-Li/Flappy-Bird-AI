@@ -7,7 +7,7 @@ from stable_baselines3.common.vec_env import SubprocVecEnv
 from stable_baselines3.common.callbacks import BaseCallback, CheckpointCallback
 from stable_baselines3.common.monitor import Monitor
 
-NUM_ENVS = 8
+NUM_ENVS = 16 # Number of parallel environments, better not to exceed the number of CPU cores available
 LOG_DIR = 'logs'
 
 # Linear scheduler
@@ -23,13 +23,14 @@ def linear_schedule(initial_value, final_value=0.0):
 
     return scheduler
 
-def make_env(rank):
+def make_env():
     def _init():
         env = gym.make("FlappyBird-v0")
         env = Monitor(env)
         return env
     return _init
 
+# Callback for logging the reward of each step
 class RewardLogger(BaseCallback):
     def __init__(self, verbose=0):
         super(RewardLogger, self).__init__(verbose)
@@ -42,37 +43,38 @@ class RewardLogger(BaseCallback):
 
 
 def main():
-    env = SubprocVecEnv([make_env(i) for i in range(NUM_ENVS)])
-    # env = gym.make("FlappyBird-v0")
+    env = SubprocVecEnv([make_env() for _ in range(NUM_ENVS)])
     
     lr_schedule = linear_schedule(2.5e-4, 2.5e-6)
     clip_range_schedule = linear_schedule(0.15, 0.025)
     
-    # model = PPO(
-    #     "MlpPolicy", 
-    #     env,
-    #     ent_coef = 0.001,
-    #     # device="cuda", 
-    #     # verbose=1,
-    #     # n_steps=512,
-    #     # batch_size=512,
-    #     # n_epochs=4,
-    #     # gamma=0.94,
-    #     # learning_rate=lr_schedule,
-    #     # clip_range=clip_range_schedule,
-    #     tensorboard_log="logs"
-    # )
-    model = PPO.load("trained_models/FlappyBird_1000000_steps.zip",
-                     env = env,
-                     custom_objects = {"learning_rate": lr_schedule,
-                                       "clip_range": clip_range_schedule}
-                    )
+    # train for the first time
+    model = PPO(
+        "MlpPolicy", 
+        env,
+        ent_coef = 0.001,
+        verbose=1,
+        n_steps=2048,
+        batch_size=256,
+        learning_rate=lr_schedule,
+        clip_range=clip_range_schedule,
+        tensorboard_log="logs"
+    )
+
+
+    # Load the model to continue training
+    # model = PPO.load(r"./trained_models/FlappyBird_stage_1.zip", env=env, custom_objects={'n_steps': 16384, 'batch_size': 256})
 
     save_dir = "trained_models"
     os.makedirs(save_dir, exist_ok=True)
-    checkpoint_interval = 31250 # checkpoint_interval * num_envs = total_steps_per_checkpoint
+
+    # Checkpoint callback for saving the model during training 
+    checkpoint_interval = 15625 # checkpoint_interval * num_envs = total_steps_per_checkpoint
     checkpoint_callback = CheckpointCallback(save_freq=checkpoint_interval, save_path=save_dir, name_prefix="FlappyBird")
+    
+    # Reward logger callback
     reward_logger = RewardLogger()
+    
     # Writing the training logs from stdout to a file
     original_stdout = sys.stdout
     log_file_path = os.path.join(save_dir, "training_log.txt")
@@ -80,8 +82,8 @@ def main():
         sys.stdout = log_file
     
         model.learn(
-            total_timesteps=int(100000000), # total_timesteps = stage_interval * num_envs * num_stages (1120 rounds)
-            callback=[checkpoint_callback, reward_logger]#, stage_increase_callback]
+            total_timesteps=int(100000000), # total_timesteps = stage_interval * num_envs * num_stages
+            callback=[checkpoint_callback, reward_logger] # checkpoint_callback is used to save the model
         )
         env.close()
 

@@ -4,14 +4,14 @@ import gymnasium
 from stable_baselines3 import PPO
 
 # Number of episodes to evaluate
-NUM = 5
+NUM = 10
 # Name of the model to evaluate
-MODEL_NAME = "FlappyBird_2000000_steps"
+MODEL_NAME = "FlappyBird_stage_final"
 # Directory where the model is saved
 MODEL_DIR = "trained_models"
 
 env = gymnasium.make("FlappyBird-v0", render_mode="rgb_array")
-model = PPO.load(path = os.path.join(MODEL_DIR,MODEL_NAME), env = env)
+model = PPO.load(path=os.path.join(MODEL_DIR, MODEL_NAME), env=env)
 average_score = 0
 
 for _ in range(NUM):
@@ -22,7 +22,7 @@ for _ in range(NUM):
         action, _ = model.predict(obs)
         # Processing:
         obs, reward, terminated, _, info = env.step(action)
-    
+
         # Checking if the player is still alive
         if terminated:
             break
